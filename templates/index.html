@@ -4,12 +4,216 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Upload File</title>
+    <style>
+        /* General Styling */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f5f5f7;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        h2 {
+            font-weight: 600;
+        }
+
+        /* Upload Container */
+        .upload-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            width: 400px;
+            text-align: center;
+        }
+
+        /* Drag and Drop Box */
+        .drop-zone {
+            border: 2px dashed #d1d1d6;
+            padding: 30px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .drop-zone:hover {
+            background-color: #f1f1f1;
+        }
+
+        .drop-zone p {
+            font-size: 14px;
+            color: #636366;
+        }
+
+        /* Buttons */
+        .buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+
+        button {
+            border: none;
+            padding: 10px 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .upload-btn {
+            background: #0071e3;
+            color: white;
+            flex: 1;
+            margin-right: 10px;
+        }
+
+        .clear-btn {
+            background: #f5f5f7;
+            color: #333;
+            flex: 1;
+        }
+
+        button:hover {
+            opacity: 0.8;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            display: none;
+            margin-top: 20px;
+            width: 100%;
+            background: #d1d1d6;
+            height: 5px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: #0071e3;
+            transition: width 1s ease-in-out;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
 </head>
 <body>
-    <h2>Upload a File for Cleaning</h2>
-    <form action="/process" method="post" enctype="multipart/form-data">
-        <input type="file" name="file">
-        <button type="submit">Upload & Clean</button>
-    </form>
+
+    <h2>Upload & Clean Your File</h2>
+    <div class="upload-container">
+        <div class="drop-zone" id="drop-zone">
+            <p>Drag & Drop a file here or click to upload</p>
+            <input type="file" id="fileInput" name="file" accept=".csv" hidden>
+        </div>
+
+        <div class="buttons">
+            <button class="upload-btn" id="uploadBtn" disabled>Upload</button>
+            <button class="clear-btn" id="clearBtn" disabled>Clear</button>
+        </div>
+
+        <div class="progress-container">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById("fileInput");
+        const dropZone = document.getElementById("drop-zone");
+        const uploadBtn = document.getElementById("uploadBtn");
+        const clearBtn = document.getElementById("clearBtn");
+        const progressContainer = document.querySelector(".progress-container");
+        const progressBar = document.getElementById("progress-bar");
+
+        // Drag and Drop Handling
+        dropZone.addEventListener("click", () => fileInput.click());
+        dropZone.addEventListener("dragover", (event) => {
+            event.preventDefault();
+            dropZone.style.background = "#f1f1f1";
+        });
+
+        dropZone.addEventListener("dragleave", () => dropZone.style.background = "white");
+
+        dropZone.addEventListener("drop", (event) => {
+            event.preventDefault();
+            dropZone.style.background = "white";
+            fileInput.files = event.dataTransfer.files;
+            handleFileSelection();
+        });
+
+        fileInput.addEventListener("change", handleFileSelection);
+
+        function handleFileSelection() {
+            if (fileInput.files.length > 0) {
+                dropZone.innerHTML = `<p>${fileInput.files[0].name}</p>`;
+                uploadBtn.disabled = false;
+                clearBtn.disabled = false;
+            }
+        }
+
+        // Clear File
+        clearBtn.addEventListener("click", () => {
+            fileInput.value = "";
+            dropZone.innerHTML = `<p>Drag & Drop a file here or click to upload</p>`;
+            uploadBtn.disabled = true;
+            clearBtn.disabled = true;
+        });
+
+        // Upload & Show Progress
+        uploadBtn.addEventListener("click", async () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            uploadBtn.disabled = true;
+            clearBtn.disabled = true;
+            progressContainer.style.display = "block";
+
+            // Simulate progress bar
+            progressBar.style.width = "0%";
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 20;
+                progressBar.style.width = progress + "%";
+                if (progress >= 100) clearInterval(interval);
+            }, 500);
+
+            // Send File to Server
+            try {
+                const response = await fetch("/process", {
+                    method: "POST",
+                    body: formData
+                });
+
+                if (response.ok) {
+                    setTimeout(() => {
+                        progressBar.style.width = "100%";
+                        alert("File cleaned successfully! Download will start now.");
+                        window.location.href = "/download";
+                    }, 1000);
+                } else {
+                    alert("Failed to process file.");
+                }
+            } catch (error) {
+                alert("Error uploading file.");
+            } finally {
+                setTimeout(() => {
+                    progressContainer.style.display = "none";
+                    uploadBtn.disabled = false;
+                    clearBtn.disabled = false;
+                }, 2000);
+            }
+        });
+    </script>
+
 </body>
 </html>
